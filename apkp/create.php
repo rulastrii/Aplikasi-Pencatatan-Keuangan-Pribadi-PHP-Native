@@ -8,6 +8,7 @@ include 'config.php';
 
 $user_id = $_SESSION['user']['id'];
 $message = ""; // Inisialisasi variabel pesan
+$saldo_akhir = 0; // Variabel untuk saldo akhir
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $type = $_POST['type'];
@@ -27,12 +28,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Insert transaction into the database
     $query = "INSERT INTO transactions (user_id, type, amount, description, photo, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
     $stmt = $conn->prepare($query);
     $stmt->bind_param("isdss", $user_id, $type, $amount, $description, $photo);
 
     if ($stmt->execute()) {
         $message = "Transaction added successfully!";
+        
+        // Calculate the final balance
+        // Total income and expenses for the user
+        $query_balance = "SELECT SUM(amount) AS total_balance FROM transactions WHERE user_id = ?";
+        $stmt_balance = $conn->prepare($query_balance);
+        $stmt_balance->bind_param("i", $user_id);
+        $stmt_balance->execute();
+        $result = $stmt_balance->get_result();
+        $row = $result->fetch_assoc();
+        
+        // The final balance will be the sum of all transactions
+        $saldo_akhir = $row['total_balance'];
     } else {
         $message = "Error: " . $stmt->error;
     }
@@ -87,6 +101,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <a href="index.php" class="btn-cancel">Cancel</a>
             </div>
         </form>
+
+        <h2>Current Balance</h2>
+        <p>Your current balance is: <strong>Rp<?= number_format($saldo_akhir, 2, ',', '.') ?></strong></p>
     </div>
 </body>
 </html>
